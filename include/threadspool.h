@@ -1,5 +1,5 @@
-#ifndef THEADSPOOL_H
-#define THREADPOOL_H
+#ifndef THREADSPOOL_H
+#define THREADSPOOL_H
 
 #include <thread>
 #include <vector>
@@ -8,21 +8,22 @@
 #include <condition_variable>
 #include <functional>
 
-class ThreadsPool{
+class ThreadsPool {
     using Task = std::function<void()>;
     std::queue<Task> task_queue;
     std::mutex queue_lock;
     std::condition_variable cv;
-    bool stop;
+    bool stop = false;
     std::vector<std::thread> threads;
 
-    public:
-    ThreadsPool(int num){}
+public:
+    explicit ThreadsPool(int num);
+    ~ThreadsPool();
 
-    void worker(){}
+    void submit(Task task);
 
-    void submit(Task task){}
-
-    ~ThreadsPool(){}
+private:
+    void worker();
 };
+
 #endif

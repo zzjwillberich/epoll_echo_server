@@ -24,6 +24,8 @@ void set_unblock(int fd){
     fcntl(fd,F_SETFL,flags);
 }
 
+void write_unblock(int epfd, int fd, std::string data);
+
 //echo功能函数  改进成循环write  写不完放在缓冲区
 void response(int epfd,int fd,std::string data){
     if(client_bufs.find(fd) == client_bufs.end() || client_bufs[fd].empty()){
@@ -170,7 +172,7 @@ int main(){
             }
             //客户端准备好了
             else{
-                if(event & EPOLLIN){
+                if(event.events & EPOLLIN){
                     //循环读取数据
                     int client_fd = event.data.fd;
                     char buf[BUF_SIZE];
@@ -197,13 +199,20 @@ int main(){
                         }else{
                             buf[n] = '\0';
                             std::string data = buf;
-                            tp.submit([client_fd,data](){
-                                response(client_fd,data);
+                            tp.submit([epfd, client_fd, data](){
+                                response(epfd, client_fd, data);
                             });
                         }
                     }
-                }else if(event & EPOLLOUT){
-
+                }else if(event.events & EPOLLOUT){
+                    int client_fd = event.data.fd;
+                    // 缓冲区有未写完的数据，继续写
+                    auto it = client_bufs.find(client_fd);
+                    if(it != client_bufs.end() && !it->second.empty()){
+                        std::string remaining = std::move(it->second);
+                        client_bufs.erase(it);
+                        write_unblock(epfd, client_fd, remaining);
+                    }
                 }
             }
         }
